@@ -1,12 +1,9 @@
 {
-    "close": false,
-    "projectType": "egret",
-    "resourcePlugin": {
-        "configs": [{
-            "configPath": "resource/default.res.json",
-            "relativePath": "resource/"
-        }],
-        "id": "org.egret-labs.resource"
+    "resourcePlugin":{
+        "configs":[{
+            "configPath":"resource/default.res.json",
+            "relativePath":"resource/"
+        }]
     },
-    "theme": "resource/default.thm.json"
+    "theme":"resource/default.thm.json"
 }
