@@ -7,7 +7,7 @@
     "native": 1,
     "path": "bin-release"
   },
-  "egret_version": "4.0.1",
+  "egret_version": "5.0.1",
   "modules": [
     {
       "name": "egret"
@@ -39,6 +39,10 @@
     {
       "name": "newaes",
       "path": "../modules/newaes"
+    },
+    {
+      "name": "promise",
+      "path": "./promise"
     }
   ]
 }

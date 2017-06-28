@@ -273,7 +273,7 @@ var egret;
         var OldNativeCanvasRenderContext = (function (_super) {
             __extends(OldNativeCanvasRenderContext, _super);
             function OldNativeCanvasRenderContext() {
-                var _this = _super.apply(this, arguments) || this;
+                var _this = _super !== null && _super.apply(this, arguments) || this;
                 _this.$matrix = new egret.Matrix();
                 _this.$nativeContext = null;
                 _this.$globalCompositeOperation = "source-over";
@@ -1155,6 +1155,9 @@ var egret;
             };
             NativeCanvas.prototype.saveToFile = function (type, filePath) {
                 if (this.$nativeCanvas && this.$nativeCanvas.saveToFile) {
+                    if (native.$supportCmdBatch) {
+                        native.$cmdManager.flush();
+                    }
                     this.$nativeCanvas.saveToFile(type, filePath);
                 }
             };
@@ -1592,7 +1595,8 @@ var egret;
                 canvas.$isRoot = true;
                 var touch = new native.NativeTouchHandler(stage);
                 var player = new egret.sys.Player(buffer, stage, option.entryClassName);
-                new native.NativeHideHandler(stage);
+                egret.lifecycle.stage = stage;
+                egret.lifecycle.addLifecycleListener(native.NativeLifeCycleHandler);
                 player.showPaintRect(option.showPaintRect);
                 if (option.showFPS || option.showLog) {
                     var styleStr = option.fpsStyles || "";
@@ -2149,7 +2153,7 @@ var egret;
             }
             catch (e) {
             }
-            var ticker = egret.sys.$ticker;
+            var ticker = egret.ticker;
             var mainLoop = native.$supportCmdBatch ? function () {
                 ticker.update();
                 native.$cmdManager.flush();
@@ -2202,7 +2206,19 @@ var egret;
             console.error.apply(console, toArray(arguments));
         };
         egret.assert = function () {
-            console.assert.apply(console, toArray(arguments));
+            if (console.assert) {
+                console.assert.apply(console, toArray(arguments));
+            }
+            else {
+                var args = toArray(arguments);
+                if (!args[0]) {
+                    var args2 = [];
+                    for (var i = 1; i < args.length; i++) {
+                        args2.push(args[i]);
+                    }
+                    console.error.apply(console, args2);
+                }
+            }
         };
         if (true) {
             egret.log = function () {
@@ -2579,6 +2595,9 @@ var egret;
                 }
                 function onAudioLoaded() {
                     audio.load();
+                    if (NativeSound.clearAudios[this.url]) {
+                        delete NativeSound.clearAudios[this.url];
+                    }
                     NativeSound.$recycle(url, audio);
                 }
                 function onCanPlay() {
@@ -2630,6 +2649,7 @@ var egret;
                 NativeSound.$clear(this.url);
             };
             NativeSound.$clear = function (url) {
+                NativeSound.clearAudios[url] = true;
                 var array = NativeSound.audios[url];
                 if (array) {
                     array.length = 0;
@@ -2643,6 +2663,9 @@ var egret;
                 return null;
             };
             NativeSound.$recycle = function (url, audio) {
+                if (NativeSound.clearAudios[url]) {
+                    return;
+                }
                 var array = NativeSound.audios[url];
                 if (NativeSound.audios[url] == null) {
                     array = NativeSound.audios[url] = [];
@@ -2681,6 +2704,7 @@ var egret;
          * @private
          */
         NativeSound.audios = {};
+        NativeSound.clearAudios = {};
         native.NativeSound = NativeSound;
         __reflect(NativeSound.prototype, "egret.native.NativeSound", ["egret.Sound"]);
         if (__global.Audio) {
@@ -2734,7 +2758,7 @@ var egret;
         var NativeCanvasRenderContext = (function (_super) {
             __extends(NativeCanvasRenderContext, _super);
             function NativeCanvasRenderContext() {
-                var _this = _super.apply(this, arguments) || this;
+                var _this = _super !== null && _super.apply(this, arguments) || this;
                 _this.$matrix = new egret.Matrix();
                 _this.$nativeContext = null;
                 _this.$globalCompositeOperation = "source-over";
@@ -4572,31 +4596,38 @@ var egret;
 (function (egret) {
     var native;
     (function (native) {
-        /**
-         * @private
-         */
-        var NativeHideHandler = (function (_super) {
-            __extends(NativeHideHandler, _super);
-            function NativeHideHandler(stage) {
-                var _this = _super.call(this) || this;
-                egret_native.pauseApp = function () {
-                    //console.log("pauseApp");
-                    stage.dispatchEvent(new egret.Event(egret.Event.DEACTIVATE));
-                    egret_native.Audio.pauseBackgroundMusic();
-                    egret_native.Audio.pauseAllEffects();
-                };
-                egret_native.resumeApp = function () {
-                    //console.log("resumeApp");
-                    stage.dispatchEvent(new egret.Event(egret.Event.ACTIVATE));
-                    egret_native.Audio.resumeBackgroundMusic();
-                    egret_native.Audio.resumeAllEffects();
-                };
-                return _this;
-            }
-            return NativeHideHandler;
-        }(egret.HashObject));
-        native.NativeHideHandler = NativeHideHandler;
-        __reflect(NativeHideHandler.prototype, "egret.native.NativeHideHandler");
+        // /**
+        //  * @private
+        //  */
+        // export class NativeHideHandler extends HashObject {
+        //     constructor(stage: Stage) {
+        //         super();
+        //         egret_native.pauseApp = function () {
+        //             //console.log("pauseApp");
+        //             stage.dispatchEvent(new Event(Event.DEACTIVATE));
+        //             egret_native.Audio.pauseBackgroundMusic();
+        //             egret_native.Audio.pauseAllEffects();
+        //         };
+        //         egret_native.resumeApp = function () {
+        //             //console.log("resumeApp");
+        //             stage.dispatchEvent(new Event(Event.ACTIVATE));
+        //             egret_native.Audio.resumeBackgroundMusic();
+        //             egret_native.Audio.resumeAllEffects();
+        //         };
+        //     }
+        // }
+        native.NativeLifeCycleHandler = function (context) {
+            egret_native.pauseApp = function () {
+                context.pause();
+                egret_native.Audio.pauseBackgroundMusic();
+                egret_native.Audio.pauseAllEffects();
+            };
+            egret_native.resumeApp = function () {
+                context.resume();
+                egret_native.Audio.resumeBackgroundMusic();
+                egret_native.Audio.resumeAllEffects();
+            };
+        };
     })(native = egret.native || (egret.native = {}));
 })(egret || (egret = {}));
 //////////////////////////////////////////////////////////////////////////////////////
@@ -4637,7 +4668,7 @@ var egret;
     var NativeResourceLoader = (function (_super) {
         __extends(NativeResourceLoader, _super);
         function NativeResourceLoader() {
-            var _this = _super.apply(this, arguments) || this;
+            var _this = _super !== null && _super.apply(this, arguments) || this;
             /**
              * @private
              */
@@ -5078,7 +5109,7 @@ var egret;
         var NativeImageLoader = (function (_super) {
             __extends(NativeImageLoader, _super);
             function NativeImageLoader() {
-                var _this = _super.apply(this, arguments) || this;
+                var _this = _super !== null && _super.apply(this, arguments) || this;
                 /**
                  * @private
                  * 使用 load() 方法加载成功的 BitmapData 图像数据。
